@@ -1,0 +1,348 @@
+# CS1210 HW4
+#
+# I certify that this file contains only my own work. I also certify
+# that I have not shared the contents of this file with anyone in 
+# any form. 
+
+######################################################################
+import csv
+import numpy
+
+######################################################################
+# Specification: opens file and reads all the records, returning a
+# list of dictionaries, each one representing a line or record from
+# the original data file. Use the Python CSV DictReader object
+# (https://docs.python.org/3.6/library/csv.html) to input the data.
+#
+# As you read in values, you should preferentially convert those
+# values to (i) int, (ii) float or, failing those, leave them as (iii)
+# strings. Use the helper function convert() to perform the
+# conversion.
+#
+# Produces a list of dictionaries, where each dictionary looks like, e.g.,
+#    {'Country':'USA', 'ClassGrade':12, 'Gender':'Female', ... }
+#
+def getData(file='test.csv'):
+    '''Opens the file, reads each record. Returns a list of dictionaries
+    where each represents a record (person) from the original file.'''
+    def convert(value):
+        try:
+            return(int(value))
+        except:
+            try:
+                return(float(value))
+            except:
+                return(value)
+    data = []
+    with open(file, newline='') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',')
+        for row in reader:
+            for key in row.keys():
+                row[key] = convert(row[key])
+            data.append(row)
+            #print(len(data))
+    print("Read {} records.".format(len(data)))
+    return(data)
+
+######################################################################
+# Specification: takes a list of dictionaries such as those produced
+# by getData() or select(), an outcome you wish to predict (an
+# attribute from the original data file), and a set of field
+# specifications upon which you wish to base your prediction.
+#
+# This function returns a deeply nested dictionary of dictionaries,
+# where the "outer dictionary" has keys corresponding to possible
+# outcomes (the second argument), each of which has a value that is a
+# dictionary of dictionaries. These "inner dictionaries" have values
+# that correspond to the field specifications (the third argument)
+# which are themselves dictionaries ("distributions") of field
+# value/count pairings. An example should make this clear.
+#
+# Assume you wish to predict gender from longest foot and height in
+# centimeters. Here is the correct invocation:
+#
+#   train(getData('input.csv', 'Gender', ('Longer_foot', ('Height_cm', 140, 199, 10))))
+    
+### train(getData('input.csv', 'Gender', ('Longer_foot', 'Region)))
+### try to predict gender based on longer foot and region
+### throw out what doesn't fit : ex 'eleven' instead of 11 as age_years
+### if its a female, take longerfoot and region and add into female value dict
+# where the outcome is 'Gender' which you desire to learn how to
+# predict from 'Longer_foot' and 'Height_cm' alone (details of how to
+# read the evidence tuple to follow; for now, just note that the
+# outcome must be an attribute of the original data, as are the
+# elements of the specified evidence tuple).
+#
+# Assuming input.csv contains 58 records with 'Gender' values (records
+# with missing values for 'Gender' are ignored), of which 40 are male
+# and 18 are female, we might get a result that looks like this:
+#
+#   {'Male':{'Longer_foot':{'Right_foot':13, 'Left_foot':27, 'Total':40}, 'Height_cm':{140:0, 150:2, ... 190:8, 'Total':38}, 'Total':40},
+#    'Female':{'Longer_foot':{'Right_foot':8, 'Left_foot':5, 'Total':13}, 'Height_cm':{140:0, 150:4, ... 190:0, 'Total':16}, 'Total':18}}
+#
+# A few things are notable. First, note the extra 'Total' fields
+# associated with the "inner dictionaries" associated each outcome for
+# 'Gender'; these report the total number of their respective outcome
+# in the input (40 males, 18 females).
+#
+# Second, note that the "distributions" (the innermost dictionaries)
+# also have 'Total' fields, which from which we can see that some
+# attribute values were also missing (e.g., only 38 of 40 males and 16
+# of the 18 females reported their heights).
+#
+# Both the outcome and the elements of the evidence tuple may be 
+# (i) an attribute name (in which case the attribute values are assumed to
+# be strings, selected from a finite set of values, as for
+# 'Longer_foot' in the example above), or 
+# (ii) a tuple consisting of an attribute name followed by a range() like 
+# specification (as for 'Height_cm' in the example above). In this latter case,
+# the values are assumed to be numeric, and are separated into a fixed number
+# of "bins" as specfied by the range() like specification.
+#
+# Missing values in the input records are ignored (but not tallied in
+# the respective 'Total' fields). Also, numeric input values obtained
+# when expecting a string (case i above) are converted to strings,
+# while string values obtained when expecting a numeric value (case ii
+# above) are, like missing values, ignored.
+### if type(outcome) == Tuple:
+    #
+#Values outside the bin range should be treated like string values that were not successfully converted to numbers (in other words, disregarded).
+## call a range func ?
+    #D is attribute:value pairs
+#convert to int or float where possible- as in HW3 ^^
+    #evidence ("Longer_foot", ("Height_cm", 140, 199, 10), Allergies)
+    #for TUPLES: throw out stuff (like strings, <140, >199) that doesnt fit in bin
+def train(D, outcome, evidence):
+    '''The train() function takes a list of dictionaries, each entry a person
+    who replied to the census, with the question being the key and their 
+    answer being the value. Returns a dictionary where the keys are each 
+    possible outcome (binned, if numeric), and the values are dictionaries
+    consisting of keys of each type of evidence and values of the number
+    of people with the particular trait for that outcome that had a given 
+    that particular response to that evidence.'''
+    
+    S={"Total":0}
+    
+    if type(outcome)==tuple: ##for tuple outcomes- to test: train(getData(), ("Height_cm", 140, 190, 10), ("Gender", 'Region'))##
+
+        #make the bins: itc 140, 150, 160, 170, 180
+        for bin in range(outcome[1], outcome[2], outcome[3]):
+            ##print(bin)## these are the (min numbers of the) bins I want to make
+            S[bin]={"Total":0} #initialize the bins
+            S[bin]["binmin"]=bin
+            S[bin]["binmax"]=bin+outcome[3]
+            #add these attributes to be able to use them in inequalities to sort values into bins
+        
+        ##make this into a bin() func if have time?##
+        personnumb=-1
+        for person in D:
+            personnumb+=1
+            if person[outcome[0]]!="":
+                ##print("person[outcome[0]] IS: {}.".format(person[outcome[0]]))##
+                for bin in S: 
+                    #go through all of the bins, checking to see if the person falls in the bin
+                    if bin != "Total":
+                        ##print(bin)##
+                        ##print("bin: {}, binmin: {}, binmax: {}".format(bin, S[bin]["binmin"], S[bin]["binmax"]))##
+                        if person[outcome[0]] >= S[bin]["binmin"] and person[outcome[0]] < S[bin]["binmax"]:
+                            #if the person falls within the range, add them to the bin
+                            S[bin]["Total"]+=1
+                            D[personnumb]["Bin"]=bin 
+                            #creates a "Bin" attribute for each person (orderedDict), 
+                            #so that later their evidences may be sorted.
+                            ##print("NEW D w BIN: {}\n".format(D))##
+                            
+        for bin in S:
+            if bin != "Total":
+                del S[bin]["binmin"]
+                del S[bin]["binmax"]
+            #delete the binmin and binmax attributes I no longer need, to clear things up
+            #and ensure that they aren't considered for anything later on.
+        #QUESTION: for bin in S:#if a bin is empty at the end of the tallying, take it out... or do you??
+        
+        outertotal=0
+        for bin in S: 
+            #add the bins to get the total number of people that 
+            #successfully replied to the outcome.
+            if bin != "Total":
+                outertotal+=S[bin]["Total"]
+        S["Total"]=outertotal
+        
+    else: #for categorical outcomes
+        for person in D: #for dict in D, each repping a person
+            ##print("person: {}".format(person))##
+            if person[outcome]!='': #if they answered the outcome, add one to the total outcomes
+                S["Total"]+=1
+            if person[outcome] not in S and person[outcome]!='':
+                S[person[outcome]]={"Total":0} #creates the first nested totals (for each outcome)
+                    ###FIRST NESTED TOTAL
+            if person[outcome]!='':
+                S[person[outcome]]["Total"]+=1
+               
+    for item in S:
+        if item != "Total": #for each possible outcome
+                #print("item")
+            for trait in evidence: #for handed, region each
+                S[item][trait]={"Total":0}
+          ################################################     
+          
+    for item in evidence: #region, handed 
+#        if type(item)==tuple:
+         
+        if type(item)!=tuple: #if the particular piece of evidence is not a tuple:
+            if type(outcome) == tuple:
+                for person in D:
+                    #print("D is: {}\n".format(D))##
+                    if person[outcome[0]]!='' and "Bin" in person: #and the person has a "bin" attribute
+                        #print(S)
+                        if len(person[item])>0 and person[item] not in S[person["Bin"]][item]:##if "righthanded" not in the nested "handed" dict AND outcome of person matches the outer female
+                            #if the person put an answer down and it hasn't been seen before, create a new one
+                            ##print("S[person['Bin']] is {}\nS[person['Bin']][item] is {}".format(S[person['Bin']], S[person['Bin']][item])) ###
+                            S[person["Bin"]][item][person[item]]=1
+                            S[person["Bin"]][item]["Total"]+=1
+                        elif len(person[item])>0 and person[item] in S[person["Bin"]][item]:
+                            #if the person put an answer that someone else previously put, increment it up
+                            S[person["Bin"]][item][person[item]]+=1
+                            S[person["Bin"]][item]["Total"]+=1
+                
+            else: #if the outcome type is not tuple
+                #works the same as the chunk above, but with different names to call things that were nested.
+                for person in D:
+                    if person[outcome]!='':
+                        if len(person[item])>0 and person[item] not in S[person[outcome]][item]: #if "righthanded" not in the nested "handed" dict AND outcome of person matches the outer female
+                            S[person[outcome]][item][person[item]]=1
+                            ##print("S[person[outcome]][item] is: {}".format(S[person[outcome]][item]))
+                            S[person[outcome]][item]["Total"]+=1
+                        elif len(person[item])>0 and person[item] in S[person[outcome]][item]:
+                            S[person[outcome]][item][person[item]]+=1
+                            S[person[outcome]][item]["Total"]+=1
+                        ##print(S)##
+    return(S)
+#train(getData("smallTest.csv"), "Gender", (("Ageyears", 15, 19, 1), 'Region'))
+#train(getData("smallTest.csv"), "Gender", (("Height_cm", 140, 190, 10), 'Region'))
+#train(getData("data.csv"), "Gender", (("Height_cm", 140, 190, 10), 'Region'))
+#train(getData("smallTest.csv"), "Gender", ('Handed', 'Region'))
+#train(getData(), "Gender", ('Handed', 'Region'))
+######################################################################
+# Specification: given a dictionary of dictionaries such as that
+# produced by train() and a single input dictionary such as one of the
+# records returned by getData(), return a dictionary consisting whose
+# keys correspond to the values of the outcomes corresponding to the
+# "outer dictionary" of S and their relative likelihood for the given
+# input example.
+## 'drop the denominator' so tiny % (around 10^-9ish): which product (P(ev/out)*P(out)) is the largest, since they all have same denom
+#Pe/o = Pe1/out * Pe2/out *Pe3/out etc... (?)
+#The predict() function takes the output (S) of the train() function and a sample 
+#input consisting of a newrecord, and returns a dict of possible outcomes 
+    #input is a person MINUS one thing, like "region", and you try to predict the thing based on what has the highest probability
+#look at S to determine what kind of var you're looking at
+    
+#output is something like {'Telepathy': 1.5551593948145038e-09, 
+#'Invisibility': 2.561419723015135e-09, 'Freeze time': 1.016061451516576e-08, 
+#'Fly': 2.4316952467408066e-09, 'Super strength': 1.2330024913716897e-09}
+#P(out/ev)= (P(ev/out)*P(out))     (/P(ev), technically, but can be ignored)
+    #P outcome given evidence = P evidence given outcome times p outcome,  divided by p evidence
+    #P0 is male, RH, 153cm
+    #P(o)=P"male" is #males/total# 
+    #P(ev/o)=P(ev1/o)*P(ev2/o)...*P(evn/o) ev1= handed, ev2 is height, w/e
+        #P(righthanded/male) is #RHmale/totalhanded
+        #P(153/male)= #in150bin/#totalheight
+    #P(ev/o)= 8/25
+    #P(male/ev)= P(ev/o)*P(o) =(8/100)/P(ev)
+    #P(female/ev)= something/P(ev)
+    #can ignore P(ev) denom bc are same
+    #outputs {"male":8/100, "female":something}
+## P(outcome|evidence) = P(e1|outcome) × ...× P(eN|outcome) * P(outcome) 
+    
+    #example input: RH male 153cm tall, trying to predict gender
+    #Pev/o 's: Prh/male = #RH/#total handedness
+    #and P153/male (150bin/male) = #150bin/#totalheights
+    
+def predict(S, input):
+    '''The predict() function takes a dictionary of dictionaries (like the one
+    created by the 'train' function) and an input (which is a single dictionary
+    of the type of a record in getData(), and returns a dictionary with keys
+    corresponding to the different possibilities of the outcome (from train())
+    and the values are a representation of how likely the input dictionary is to
+    have that outcome, given the evidence it has for other traits, based on
+    the records analyzed'''
+    
+    totalrecs = S["Total"]
+    del S["Total"]
+    predictDict = {}
+    ##print("S is: {}".format(S))##
+    ##print("\nINPUT is: {}".format(input))##
+    
+    for key in S: #for each outcome represented in the data: male, female
+        slist = []
+        #make a list of all of the P(ev/o) values that will need to be multiplied together
+        
+        ## righthandedmales#/allhandedmales#, #150binmales/#anyheightmales ##
+        for trait in input: #age, handed, height, country, region. input[trait] = "righthanded"
+            #key[righthanded]
+            if trait in S[key]: #if in each outcome's dict
+                if input[trait] not in S[key][trait]: #if IL not in S- ignore the value
+                    slist=slist
+                else:
+                    evo = S[key][trait][input[trait]]/S[key][trait]["Total"]   #total #(S[key[0]]) ?
+                    ##print("trait is: {}. input[trait] is: {}. trait total is: {}. ev/o: {}".format(trait, input[trait], S[key][trait]["Total"], evo))##
+                    slist.append(evo) #append the ev/o to the list
+
+        ##print("slist is: {}".format(slist))##
+        evos = numpy.prod(slist)
+        #multiplies all of the P(evidence(n)/outcomes) together
+        
+        ##print("\nS is: {}.\n\nS[key] is: {}".format(S, S[key]))##
+        #P(evidences|outcome) * P(outcome):
+        prediction=evos*((S[key]["Total"])/totalrecs)
+        ##print("Key {}'s total divided by {} totalrecs".format(key, totalrecs))##
+        ##print((S[key]["Total"])/totalrecs)##
+        
+        #add the key:value pair of "the particular outcome":(that outcome's 
+        #predicted value) to the prediction dictionary, to be returned.
+        predictDict[key]=prediction
+            
+            
+    return(predictDict)
+    
+    
+    
+# predict(train(getData("test.csv")[:-1], "Schoolwork_Pressure", ("Gender", "Handed", ("Paid_Work_Hours", 0, 40, 10)))) #from 12/11 lecture
+# predict(train(getData("smallTest.csv")[:-1], 'Gender', ('Region', 'Handed')), getData("smallTest.csv")[-1]) #to predict the last thing
+
+
+#zach's test:
+#out = gender, ev = (handed, (height_cm, 140, 190, 10)
+#input= getData("data.csv")[0]
+#RETURNS: {male: 0.044908, female:.226468}
+    
+
+
+##Segre's predict input and output:
+#>>> D=getData('data.csv')
+#Read 5000 records.
+#>>> S=train(D[:-1], 'Gender', ('Region', 'Handed'))
+#>>> S
+#{'Total': 4967, 'Female': {'Total': 2527, 'Region': {'Total': 2527, 
+#'OK': 36, 'GA': 80, 'CA': 429, 'OH': 79, 'NH': 18, 'CO': 57, 'MA': 60, 
+#'TX': 144, 'ID': 48, 'NJ': 67, 'UT': 14, 'PA': 196, 'MD': 13, 'NY': 91, 
+#'NE': 21, 'MN': 7, 'NC': 113, 'WI': 63, 'AK': 6, 'AR': 3, 'TN': 31, 
+#'IN': 177, 'MO': 24, 'CT': 33, 'AZ': 50, 'IL': 40, 'FL': 91, 'VA': 88, 
+#'SC': 143, 'RI': 15, 'MI': 107, 'AL': 16, 'KS': 20, 'KY': 12, 'VT': 3, 
+#'IA': 19, 'WA': 27, 'DE': 9, 'OR': 14, 'NM': 29, 'MT': 17, 'LA': 6, 
+#'GU': 1, 'HI': 3, 'SD': 1, 'ME': 2, 'WV': 2, 'DC': 2}, 'Handed': 
+#{'Total': 2485, 'Right-Handed': 2189, 'Left-Handed': 216, 
+# 'Ambidextrous': 80}}, 'Male': {'Total': 2440, 'Region': {'Total': 2440,
+#'NH': 13, 'MA': 66, 'OH': 92, 'NJ': 63, 'NC': 110, 'IL': 40, 'WI': 67, 
+#'TX': 129, 'GA': 55, 'OK': 29, 'ID': 38, 'NE': 27, 'TN': 29, 'CA': 432,
+# 'RI': 5, 'IN': 161, 'DE': 60, 'PA': 209, 'MN': 11, 'VA': 79, 'UT': 9, 
+# 'SC': 98, 'FL': 141, 'AL': 23, 'CT': 35, 'IA': 8, 'AZ': 45, 'AK': 3, 
+# 'KS': 26, 'MI': 101, 'CO': 47, 'AR': 4, 'WA': 26, 'MD': 2, 'WV': 2, 
+# 'MO': 29, 'NY': 64, 'VT': 3, 'OR': 3, 'DC': 4, 'MT': 12, 'LA': 6, 
+# 'VI': 2, 'NM': 22, 'HI': 3, 'KY': 4, 'SD': 1, 'ME': 2}, 'Handed': 
+#    {'Total': 2397, 'Right-Handed': 2055, 'Left-Handed': 220, 
+#     'Ambidextrous': 122}}}
+#>>> predict(S, D[-1]) AKA predict(train(getData('data.csv')[:-1], 'Gender', ('Region', 'Handed')), getData('data.csv')[-1])
+#{'Female': 0.016138627618337363, 'Male': 0.024337095417994056}
+# predict(train(getData('smalltest.csv')[:-1], 'Gender', ('Region', 'Handed')), getData('smalltest.csv')[-1])
+# predict(train(getData('smalltest.csv')[:-1], ('Height_cm', 140, 190, 10), ('Region', 'Handed')), getData('smalltest.csv')[-1])
